@@ -24,3 +24,7 @@ Make sure the accounts you want to copy are accessible through an Assume Role.
 ## Licence
 
 Apache License, version 2.0
+
+## Build
+
+GitHub Actions is used to build the application now.
