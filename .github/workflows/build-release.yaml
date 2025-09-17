@@ -16,16 +16,34 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Build cross-platform binaries
-        uses: CETOptimization/common-actions/go-cross-build-binaries@v4.14.4
+      - name: Setup Go
+        uses: actions/setup-go@v5
         with:
-          name: aws-ami-manager
-          tag-name: ${{ inputs.tag_name }}
-          dist-folder: dist
-          go-version: '1.25.x'
+          go-version: ${{ inputs.go-version }}
+          cache: 'true'
+
+      - name: Cross Platform Build
+        id: cross-platform-build
+        shell: bash
+        run: |
+          set -euo pipefail
+          NAME=${{ inputs.name }}
+          DIST_FOLDER="${{ inputs.dist-folder }}"
+          TAG="${{ inputs.tag-name }}"
+          mkdir -p $DIST_FOLDER
+          
+          build() {
+            local goos="$1" goarch="$2" ext="$3"
+            local out="${DIST_FOLDER}/${NAME}_${TAG}_${goos}_${goarch}${ext}"
+            echo "Building $out"
+            CGO_ENABLED=0 GOOS="$goos" GOARCH="$goarch" go build -ldflags="-s -w" -o "$out" ${{ inputs.sources }}
+          }
+          
+          build linux amd64 ""
+          build linux arm64 ""
+          build darwin amd64 ""
+          build darwin arm64 ""
+          build windows amd64 ".exe"
 
       - name: Upload release assets
         uses: softprops/action-gh-release@v2
