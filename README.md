@@ -2,7 +2,7 @@
 
 Aws-ami-manager offers a simple way to perform copy, remove and cleanup operations on your AMI's. 
 
-PS: Forked from original repo.
+PS: Forked from original repo thus not using CETOptimization related builds.
 
 ## Usage
 
