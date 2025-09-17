@@ -1,6 +1,7 @@
 name: Build Release
 
 on:
+  workflow_dispatch:
   workflow_call:
     inputs:
       tag_name:
