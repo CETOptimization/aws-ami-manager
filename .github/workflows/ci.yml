@@ -16,24 +16,33 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Setup Go
-        uses: actions/setup-go@v5
+      - name: Build cross-platform binaries
+        uses: CETOptimization/common-actions/go-cross-build-binaries@v4.14.4
         with:
+          name: aws-ami-manager
+          tag-name: ${{ inputs.tag_name }}
+          dist-folder: dist
           go-version: '1.25.x'
-          cache: true
 
-      - name: Setup just
-        uses: extractions/setup-just@v3
-
-      - name: Tidy
-        run: just tidy
-
-#      - name: Vet
-#        run: just vet
 #
-#      - name: Test
-#        run: just test
-
-      - name: Build
-        run: just build
-
+#      - name: Setup Go
+#        uses: actions/setup-go@v5
+#        with:
+#          go-version: '1.25.x'
+#          cache: true
+#
+#      - name: Setup just
+#        uses: extractions/setup-just@v3
+#
+#      - name: Tidy
+#        run: just tidy
+#
+##      - name: Vet
+##        run: just vet
+##
+##      - name: Test
+##        run: just test
+#
+#      - name: Build
+#        run: just build
+#
