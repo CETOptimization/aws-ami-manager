@@ -2,6 +2,8 @@
 
 Aws-ami-manager offers a simple way to perform copy, remove and cleanup operations on your AMI's. 
 
+PS: Forked from original repo.
+
 ## Usage
 
 This application uses the typical ways of authenticating with AWS.
