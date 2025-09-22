@@ -1,4 +1,4 @@
-# Justfile for flexpond-version-generator
+# Justfile
 
 set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
 
@@ -7,7 +7,8 @@ default: build
 
 # Build the CLI
 build:
-	go build -v ./...
+	go build -o dist/aws-ami-manager .
+
 
 # Install the CLI locally (GOBIN or GOPATH/bin)
 install:

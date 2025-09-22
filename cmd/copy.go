@@ -68,5 +68,9 @@ func init() {
 }
 
 func loadAWSConfigForProfiles() {
-	aws.ConfigManager = aws.NewConfigurationManagerForRegionsAndAccounts(regions, accounts, role)
+	cm, err := aws.NewConfigurationManagerForRegionsAndAccounts(regions, accounts, role)
+	if err != nil {
+		log.Fatalf("Failed to initialize AWS configuration: %v", err)
+	}
+	aws.ConfigManager = cm
 }

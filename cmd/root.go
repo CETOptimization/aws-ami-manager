@@ -25,22 +25,25 @@ import (
 )
 
 var (
-	logLevel string
-	amiID    string
-	regions  []string
-	role     string
+	logLevel       string
+	amiID          string
+	regions        []string
+	role           string
+	regionOverride string
 )
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "aws-aws-manager",
-	Short: "A brief description of your application",
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Use:   "aws-ami-manager",
+	Short: "Manage copying, cleanup, and removal of AMIs across regions and accounts",
+	Long: `aws-ami-manager helps you copy AMIs across multiple AWS regions and accounts, 
+set launch permissions, tag them, and clean up older versions.`,
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		// Apply region override early so subcommands pick it up when constructing AWS config
+		if regionOverride != "" {
+			os.Setenv("AWS_REGION", regionOverride)
+		}
+	},
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -55,5 +58,6 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&logLevel, "loglevel", logrus.DebugLevel.String(), "Set the log level")
+	rootCmd.PersistentFlags().StringVar(&logLevel, "loglevel", logrus.DebugLevel.String(), "Set the log level (debug, info, warn, error)")
+	rootCmd.PersistentFlags().StringVar(&regionOverride, "region", "", "AWS region to use (overrides AWS_REGION/AWS_DEFAULT_REGION env vars)")
 }

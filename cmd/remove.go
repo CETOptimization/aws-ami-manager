@@ -34,14 +34,17 @@ E.g. ./aws-ami-manager remove --amiID=ami-075d87a3d4512bee5
 }
 
 func runRemove() {
-	cm := aws.NewConfigurationManager()
+	cm, err := aws.NewConfigurationManager()
+	if err != nil {
+		log.Fatalf("Failed to initialize AWS configuration: %v\nPlease ensure your AWS credentials and region are set (via environment variables, config file, or IAM role).", err)
+	}
 
 	ami := aws.NewAmi(amiID)
 	ami.SourceRegion = cm.GetDefaultRegion()
 
 	aws.ConfigManager = cm
 
-	err := ami.RemoveAmi()
+	err = ami.RemoveAmi()
 
 	if err != nil {
 		log.Fatal(err)

@@ -39,14 +39,17 @@ It keeps the most recent version with the same tags and AMI's that are currently
 }
 
 func runCleanup() {
-	cm := aws.NewConfigurationManager()
+	cm, err := aws.NewConfigurationManager()
+	if err != nil {
+		log.Fatalf("Failed to initialize AWS configuration: %v", err)
+	}
 
 	ami := aws.NewAmi(amiID)
 	ami.SourceRegion = cm.GetDefaultRegion()
 
 	aws.ConfigManager = cm
 
-	err := ami.Cleanup(regions, tagsToMatch, versionsToKeep)
+	err = ami.Cleanup(regions, tagsToMatch, versionsToKeep)
 
 	if err != nil {
 		log.Fatal(err)
