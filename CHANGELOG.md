@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.4](https://github.com/CETOptimization/aws-ami-manager/compare/v1.1.3...v1.1.4) (2025-09-22)
+
+
+### Bug Fixes
+
+* try some changes ([e8253e0](https://github.com/CETOptimization/aws-ami-manager/commit/e8253e02ec97eaca5a36967fa18c441f5ec2554f))
+
 ## [1.1.3](https://github.com/CETOptimization/aws-ami-manager/compare/v1.1.2...v1.1.3) (2025-09-17)
 
 
