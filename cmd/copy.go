@@ -22,10 +22,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	accounts []string
-)
-
 // copyCmd represents the copy command
 var copyCmd = &cobra.Command{
 	Use:   "copy",

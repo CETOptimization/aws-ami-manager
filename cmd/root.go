@@ -28,8 +28,10 @@ var (
 	logLevel       string
 	amiID          string
 	regions        []string
+	accounts       []string
 	role           string
 	regionOverride string
+	profileName    string
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -39,9 +41,11 @@ var rootCmd = &cobra.Command{
 	Long: `aws-ami-manager helps you copy AMIs across multiple AWS regions and accounts, 
 set launch permissions, tag them, and clean up older versions.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		// Apply region override early so subcommands pick it up when constructing AWS config
 		if regionOverride != "" {
 			os.Setenv("AWS_REGION", regionOverride)
+		}
+		if profileName != "" {
+			os.Setenv("AWS_PROFILE", profileName)
 		}
 	},
 }
@@ -60,4 +64,5 @@ func Execute() {
 func init() {
 	rootCmd.PersistentFlags().StringVar(&logLevel, "loglevel", logrus.DebugLevel.String(), "Set the log level (debug, info, warn, error)")
 	rootCmd.PersistentFlags().StringVar(&regionOverride, "region", "", "AWS region to use (overrides AWS_REGION/AWS_DEFAULT_REGION env vars)")
+	rootCmd.PersistentFlags().StringVar(&profileName, "profile", "", "AWS profile name to use (sets AWS_PROFILE before loading config)")
 }

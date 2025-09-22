@@ -329,19 +329,40 @@ func (ami *Ami) Cleanup(regions []string, tagsToMatch []string, versionsToKeep i
 	return err
 }
 
-func (ami *Ami) RemoveAmi() error {
-	// describe ami
+func (ami *Ami) RemoveAmi(dryRun bool) error {
+	// describe ami (existence + metadata pre-check)
 	err := ami.fetchMetadata()
-
 	if err != nil {
-		log.Fatal(err)
+		account := "<unknown>"
+		if ConfigManager != nil && ConfigManager.defaultAccountID != nil {
+			account = *ConfigManager.defaultAccountID
+		}
+		return fmt.Errorf("AMI %s not found or inaccessible in account %s region %s: %w", ami.SourceAmiID, account, ami.SourceRegion, err)
+	}
+
+	if dryRun {
+		// Collect snapshot IDs (if any) for informational output
+		snapshotIDs := []string{}
+		if ami.AWSImage != nil {
+			for _, mapping := range ami.AWSImage.BlockDeviceMappings {
+				if mapping.Ebs != nil && mapping.Ebs.SnapshotId != nil {
+					snapshotIDs = append(snapshotIDs, *mapping.Ebs.SnapshotId)
+				}
+			}
+		}
+		log.Infof("[dry-run] Would deregister AMI %s (name=%s) in region %s", ami.SourceAmiID, ami.SourceAmiName, ami.SourceRegion)
+		if len(snapshotIDs) > 0 {
+			log.Infof("[dry-run] Would delete snapshots: %v", snapshotIDs)
+		} else {
+			log.Infof("[dry-run] No snapshots found to delete (may be ephemeral or metadata not loaded)")
+		}
+		log.Info("[dry-run] No changes were made.")
+		return nil
 	}
 
 	ec2Service := getEC2ServiceForAccountAndRegion(*ConfigManager.defaultAccountID, ConfigManager.GetDefaultRegion())
-	err = removeAwsAmi(ami.AWSImage, ec2Service)
-
-	if err != nil {
-		log.Fatal(err)
+	if err := removeAwsAmi(ami.AWSImage, ec2Service); err != nil {
+		return fmt.Errorf("failed removing AMI %s: %w", ami.SourceAmiID, err)
 	}
 
 	return nil
@@ -354,21 +375,22 @@ func removeAwsAmi(image *ec2Types.Image, ec2Service *ec2.Client) error {
 	}
 
 	_, err := ec2Service.DeregisterImage(context.Background(), deregisterAmiInput)
-
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	log.Debug("AMI is de-registered.")
 
 	// delete snapshot
 	for _, mapping := range image.BlockDeviceMappings {
+		if mapping.Ebs == nil || mapping.Ebs.SnapshotId == nil {
+			continue
+		}
 		deleteSnapshotInput := &ec2.DeleteSnapshotInput{
 			SnapshotId: mapping.Ebs.SnapshotId,
 		}
 
 		_, err := ec2Service.DeleteSnapshot(context.Background(), deleteSnapshotInput)
-
 		if err != nil {
 			return err
 		}

@@ -52,9 +52,22 @@ func NewConfigurationManagerForRegionsAndAccounts(regions []string, accounts []s
 	}
 
 	log.Debug("Setting defaults")
-	conf, err := config.LoadDefaultConfig(context.TODO())
+	// Ensure shared config is considered (helps with SSO profiles when user forgot to export AWS_SDK_LOAD_CONFIG=1)
+	if os.Getenv("AWS_SDK_LOAD_CONFIG") == "" {
+		_ = os.Setenv("AWS_SDK_LOAD_CONFIG", "1")
+		log.Debug("AWS_SDK_LOAD_CONFIG not set; defaulting to 1 to enable shared config & SSO support")
+	}
+
+	profileFromEnv := os.Getenv("AWS_PROFILE")
+	conf, err := config.LoadDefaultConfig(context.TODO(), func(o *config.LoadOptions) error {
+		// If a profile is set, use it explicitly
+		if profileFromEnv != "" {
+			o.SharedConfigProfile = profileFromEnv
+		}
+		return nil
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed loading default AWS config: %w", err)
+		return nil, fmt.Errorf("failed loading default AWS config (profile=%s): %w", profileFromEnv, err)
 	}
 
 	// Ensure region is set
@@ -70,8 +83,15 @@ func NewConfigurationManagerForRegionsAndAccounts(regions []string, accounts []s
 	}
 
 	cm.defaultConfig = conf
-	cm.defaultProfile = os.Getenv(ProfileString)
+	cm.defaultProfile = profileFromEnv
 	cm.defaultRegion = conf.Region
+
+	// Attempt credential retrieval before making STS call for clearer diagnostics
+	creds, credErr := conf.Credentials.Retrieve(context.TODO())
+	if credErr != nil {
+		return nil, fmt.Errorf("unable to retrieve AWS credentials for profile '%s' region '%s': %v\nHints: ensure 'aws sso login --profile %s' was executed, or export static credentials. If using SSO, confirm your AWS CLI v2 cache exists in ~/.aws/sso/cache and AWS_SDK_LOAD_CONFIG=1.", cm.defaultProfile, conf.Region, credErr, cm.defaultProfile)
+	}
+	log.WithFields(log.Fields{"credential_source": creds.Source, "access_key_present": creds.AccessKeyID != "", "using_profile": profileFromEnv}).Debug("Retrieved AWS credentials")
 
 	log.WithFields(log.Fields{
 		"resolved_region":        conf.Region,
@@ -87,7 +107,7 @@ func NewConfigurationManagerForRegionsAndAccounts(regions []string, accounts []s
 	if err != nil {
 		baseMsg := fmt.Sprintf("unable to load default account identity (region=%s): %v", conf.Region, err)
 		if strings.Contains(err.Error(), "ResolveEndpointV2") {
-			baseMsg += "\nHint: STS endpoint resolution failed. This almost always means the region was empty or invalid. Try passing --region or setting AWS_REGION."
+			baseMsg += "\nHint: STS endpoint resolution failed. This almost always means the region was empty or invalid, or the service model is outdated. Try updating dependencies (go get -u github.com/aws/aws-sdk-go-v2/...) and passing --region explicitly."
 		}
 		baseMsg += "\n" + buildCredentialHint().Error()
 		return nil, errors.New(baseMsg)
@@ -168,4 +188,25 @@ func (cm *ConfigurationManager) getConfigurationForAccountAndRegion(account stri
 
 func (cm *ConfigurationManager) getAccounts() []string {
 	return cm.accounts
+}
+
+func (cm *ConfigurationManager) AssumeDefaultAccountRole(account string, role string) error {
+	// Build new assumed role config based on current default
+	base := cm.GetConfigurationForDefaultAccount()
+	stsSvc := sts.NewFromConfig(base)
+	provider := stscreds.NewAssumeRoleProvider(stsSvc, fmt.Sprintf("arn:aws:iam::%s:role/%s", account, role))
+	assumed := base
+	assumed.Credentials = awsv2.NewCredentialsCache(provider)
+
+	// Verify identity
+	stsAssumed := sts.NewFromConfig(assumed)
+	id, err := stsAssumed.GetCallerIdentity(context.TODO(), &sts.GetCallerIdentityInput{})
+	if err != nil {
+		return fmt.Errorf("failed to assume role %s in account %s: %w", role, account, err)
+	}
+
+	cm.defaultConfig = assumed
+	cm.defaultAccountID = id.Account
+	cm.role = role
+	return nil
 }
