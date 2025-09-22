@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/CETOptimization/aws-ami-manager/compare/v1.1.4...v1.2.0) (2025-09-22)
+
+
+### Features
+
+* upgrades for sso and dry-run ([70fc1c9](https://github.com/CETOptimization/aws-ami-manager/commit/70fc1c961f2395b7e07e13989302b4cc5f50a1d1))
+
 ## [1.1.4](https://github.com/CETOptimization/aws-ami-manager/compare/v1.1.3...v1.1.4) (2025-09-22)
 
 
