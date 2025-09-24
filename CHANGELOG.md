@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/CETOptimization/aws-ami-manager/compare/v1.2.0...v1.2.1) (2025-09-24)
+
+
+### Bug Fixes
+
+* various role related (display, default, ...) ([5c7103e](https://github.com/CETOptimization/aws-ami-manager/commit/5c7103ec2da7b2a029b3d5cf96fc61e9a139b36b))
+
 ## [1.2.0](https://github.com/CETOptimization/aws-ami-manager/compare/v1.1.4...v1.2.0) (2025-09-22)
 
 
