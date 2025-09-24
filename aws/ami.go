@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -57,6 +58,33 @@ func NewAmiWithRegions(sourceAmiID string, sourceRegion string, regions []string
 	return ami
 }
 
+// formatTags converts a pointer to a slice of EC2 tags into a readable comma-separated string.
+// It safely handles nil pointers and nil key/value pointers within each tag.
+func formatTags(tags *[]ec2Types.Tag) string {
+	if tags == nil {
+		return "<nil>"
+	}
+	if len(*tags) == 0 {
+		return "<empty>"
+	}
+	parts := make([]string, 0, len(*tags))
+	for _, t := range *tags {
+		var k, v string
+		if t.Key != nil {
+			k = *t.Key
+		} else {
+			k = "<nil>"
+		}
+		if t.Value != nil {
+			v = *t.Value
+		} else {
+			v = "<nil>"
+		}
+		parts = append(parts, fmt.Sprintf("%s=%s", k, v))
+	}
+	return strings.Join(parts, ", ")
+}
+
 func (ami *Ami) fetchMetadata() error {
 	log.Debug("Fetching metadata about the AMI")
 	ec2svc := getEC2ServiceForAccountAndRegion(*ConfigManager.defaultAccountID, ami.SourceRegion)
@@ -90,7 +118,7 @@ func (ami *Ami) fetchMetadata() error {
 
 	if ami.SourceAmiTags == nil && images[0].Tags != nil {
 		ami.SourceAmiTags = &images[0].Tags
-		log.Debugf("AMI tags: %s", ami.SourceAmiTags)
+		log.Debugf("AMI tags: %s", formatTags(ami.SourceAmiTags))
 	}
 
 	return nil

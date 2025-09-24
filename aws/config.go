@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
 	"os"
 	"strings"
+
+	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
 
 	awsv2 "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -115,19 +116,48 @@ func NewConfigurationManagerForRegionsAndAccounts(regions []string, accounts []s
 
 	cm.defaultAccountID = defaultAccountID.Account
 
+	// Enhanced cross-account role handling (in-place patch)
+	// If accounts are specified and role is empty, attempt environment fallback then default constant
+	if len(cm.accounts) > 0 && strings.TrimSpace(cm.role) == "" {
+		if envRole := os.Getenv("AWS_AMI_MANAGER_ROLE"); strings.TrimSpace(envRole) != "" {
+			cm.role = strings.TrimSpace(envRole)
+			log.Debugf("Role not provided via flag; using AWS_AMI_MANAGER_ROLE env value '%s'", cm.role)
+		} else {
+			cm.role = "terraform" // default fallback consistent with copy/remove command
+			log.Debugf("Role not provided; defaulting to '%s'", cm.role)
+		}
+	}
+
 	cm.configsPerAccount = make(map[string]awsv2.Config)
 	for _, account := range cm.accounts {
-		// you shouldn't assume role in your own account. We expect this user to have sufficient permissions
-		if account == *cm.defaultAccountID {
+		account = strings.TrimSpace(account)
+		if account == "" {
+			log.Warn("Skipping empty account entry in --accounts / accounts list")
+			continue
+		}
+		// Skip assuming into the default (current) account
+		if cm.defaultAccountID != nil && account == *cm.defaultAccountID {
+			log.WithField("account", account).Debug("Skipping assume-role for default account")
 			continue
 		}
 
-		confCopy := conf.Copy()
+		if strings.TrimSpace(cm.role) == "" {
+			return nil, fmt.Errorf("cannot assume role into account %s: role name is empty after fallback attempts; pass --role or set AWS_AMI_MANAGER_ROLE", account)
+		}
 
-		confCopy.Credentials = stscreds.NewAssumeRoleProvider(stsService, "arn:aws:iam::"+account+":role/"+cm.role)
-
+		confCopy := cm.defaultConfig.Copy()
+		assumeArn := fmt.Sprintf("arn:aws:iam::%s:role/%s", account, cm.role)
+		log.WithFields(log.Fields{"account": account, "role": cm.role, "assume_role_arn": assumeArn}).Debug("Configuring assume role provider")
+		confCopy.Credentials = stscreds.NewAssumeRoleProvider(sts.NewFromConfig(cm.defaultConfig), assumeArn)
 		cm.configsPerAccount[account] = confCopy
 	}
+
+	log.WithFields(log.Fields{"default_account": func() string {
+		if cm.defaultAccountID != nil {
+			return *cm.defaultAccountID
+		}
+		return "<nil>"
+	}(), "target_accounts": cm.accounts, "role": cm.role}).Debug("Initialized ConfigurationManager")
 
 	return cm, nil
 }

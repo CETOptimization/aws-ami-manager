@@ -84,6 +84,6 @@ func init() {
 	_ = removeCmd.MarkFlagRequired("amiID")
 
 	removeCmd.Flags().StringSliceVar(&accounts, "accounts", []string{}, "Optional: Account ID(s) to assume into for this operation (only first is used).")
-	removeCmd.Flags().StringVar(&role, "role", "", "Optional: Role name to assume in the provided account(s). Required if --accounts is set.")
+	removeCmd.Flags().StringVar(&role, "role", "terraform", "Role name to assume in the provided account (defaults to 'terraform'). When --accounts is set this role must exist in that account.")
 	removeCmd.Flags().BoolVar(&removeDryRun, "dry-run", false, "Show what would be removed without performing deregistration or snapshot deletion.")
 }

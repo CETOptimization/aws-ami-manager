@@ -15,6 +15,7 @@
 package cmd
 
 import (
+	"strings"
 	"time"
 
 	"github.com/cloudnatives/aws-ami-manager/aws"
@@ -37,6 +38,11 @@ E.g. aws-ami-manager copy --amiID=ami-0e38977fc6310ea8b --regions=eu-west-1,eu-c
 
 func runCopy() {
 	log.Infof("Started copying AMI %s", amiID)
+	if len(accounts) > 0 {
+		log.WithFields(log.Fields{"accounts": strings.Join(accounts, ","), "role": role}).Info("Copying AMI across additional target account(s)")
+	} else {
+		log.Info("No additional accounts specified; operating only in default credential account")
+	}
 	start := time.Now()
 
 	loadAWSConfigForProfiles()
