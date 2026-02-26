@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.2.2](https://github.com/CETOptimization/aws-ami-manager/compare/v1.2.1...v1.2.2) (2026-02-26)
+
+
+### Bug Fixes
+
+* enable uts ([a590aac](https://github.com/CETOptimization/aws-ami-manager/commit/a590aacedf32e5abc2d5c539378e007efd34f993))
+* improvements and unit tests ([5bd83b6](https://github.com/CETOptimization/aws-ami-manager/commit/5bd83b61517e936e353493526fdcca68938f2fcc))
+* update deps and go and add increasing wait time between availability checks ([a14b298](https://github.com/CETOptimization/aws-ami-manager/commit/a14b2988c0a0ce374b632e77331b036514ede0cc))
+
 ## [1.2.1](https://github.com/CETOptimization/aws-ami-manager/compare/v1.2.0...v1.2.1) (2025-09-24)
 
 
