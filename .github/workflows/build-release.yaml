@@ -13,7 +13,7 @@ permissions:
   pull-requests: write
 
 jobs:
-  release-please:
+  build-release:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
