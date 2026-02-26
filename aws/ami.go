@@ -2,7 +2,6 @@ package aws
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -22,7 +21,6 @@ var (
 )
 
 func getEC2ServiceForAccountAndRegion(account string, region string) *ec2.Client {
-	log.Debugf("getEC2ServiceForAccountAndRegion: account %s, region %s", account, region)
 	if ec2Services[account] == nil {
 		ec2Services[account] = make(map[string]*ec2.Client)
 	}
@@ -43,12 +41,14 @@ type Ami struct {
 	AmisPerRegion map[string]*Ami
 }
 
+// NewAmi creates a new AMI instance with the provided source AMI ID.
 func NewAmi(sourceAmiID string) *Ami {
 	return &Ami{
 		SourceAmiID: sourceAmiID,
 	}
 }
 
+// NewAmiWithRegions creates a new AMI instance with source AMI ID, region, and a list of target regions.
 func NewAmiWithRegions(sourceAmiID string, sourceRegion string, regions []string) *Ami {
 	ami := &Ami{
 		SourceAmiID:   sourceAmiID,
@@ -105,7 +105,7 @@ func (ami *Ami) fetchMetadata() error {
 	images := result.Images
 
 	if len(images) < 1 {
-		return errors.New(fmt.Sprintf("no ami found with id %s", ami.SourceAmiID))
+		return fmt.Errorf("no ami found with id %s", ami.SourceAmiID)
 	}
 
 	ami.AWSImage = &images[0]
@@ -125,6 +125,8 @@ func (ami *Ami) fetchMetadata() error {
 	return nil
 }
 
+// Copy copies the AMI to the specified regions and sets launch permissions for the configured accounts.
+// It fetches source AMI metadata, copies to each region concurrently, and applies tags and permissions.
 func (ami *Ami) Copy() {
 	// Fetch name and tags for the source AMI
 	err := ami.fetchMetadata()
@@ -206,14 +208,30 @@ func (ami *Ami) copyToRegion(region string) (*Ami, error) {
 	// Wait until AMI is `available`
 	duration, _ := time.ParseDuration("5s")
 	maxDuration, _ := time.ParseDuration("30s")
+	maxPollingDuration, _ := time.ParseDuration("30m")
+	warningThreshold, _ := time.ParseDuration("5m")
 	start := time.Now()
+	warnedAboutThreshold := false
 
 	for {
 		_ = relatedAmi.fetchMetadata()
 
-		if relatedAmi.isAvailable() == true {
+		if relatedAmi.isAvailable() {
 			log.Infof("AMI %s is available.", relatedAmi.SourceAmiID)
 			break
+		}
+
+		elapsed := time.Since(start)
+
+		// Warn if polling exceeds threshold
+		if elapsed > warningThreshold && !warnedAboutThreshold {
+			log.Warnf("AMI %s has not become available after %s. This may indicate a regional issue.", relatedAmi.SourceAmiID, elapsed)
+			warnedAboutThreshold = true
+		}
+
+		// Check if total polling duration exceeded
+		if elapsed > maxPollingDuration {
+			return nil, fmt.Errorf("timeout waiting for AMI %s to become available after %s in region %s", relatedAmi.SourceAmiID, elapsed, region)
 		}
 
 		log.Infof("AMI %s is not available yet. Waiting %f seconds.", relatedAmi.SourceAmiID, duration.Seconds())
@@ -251,6 +269,7 @@ func (ami *Ami) setOwners(owners []string) error {
 	return err
 }
 
+// isAvailable returns true if the AMI is in the 'available' state.
 func (ami *Ami) isAvailable() bool {
 	if ami.AWSImage == nil {
 		_ = ami.fetchMetadata()
@@ -287,7 +306,7 @@ func convertRegionSliceToAmi(slice []string) map[string]*Ami {
 }
 
 func createLaunchPermissionsForOwners(owners []string) []ec2Types.LaunchPermission {
-	launchPermissions := make([]ec2Types.LaunchPermission, len(owners))
+	launchPermissions := make([]ec2Types.LaunchPermission, 0, len(owners))
 	for _, owner := range owners {
 		launchPermissions = append(launchPermissions, ec2Types.LaunchPermission{
 			UserId: aws.String(owner),
@@ -296,6 +315,7 @@ func createLaunchPermissionsForOwners(owners []string) []ec2Types.LaunchPermissi
 	return launchPermissions
 }
 
+// Cleanup removes older AMI versions based on tag filters and keeps only the specified number of newest versions per region.
 func (ami *Ami) Cleanup(regions []string, tagsToMatch []string, versionsToKeep int) error {
 	// describe ami
 	err := ami.fetchMetadata()
@@ -365,6 +385,8 @@ func (ami *Ami) Cleanup(regions []string, tagsToMatch []string, versionsToKeep i
 	return err
 }
 
+// RemoveAmi deregisters the AMI and deletes its associated snapshots.
+// If dryRun is true, it logs what would be deleted without making changes.
 func (ami *Ami) RemoveAmi(dryRun bool) error {
 	// describe ami (existence + metadata pre-check)
 	err := ami.fetchMetadata()
@@ -417,22 +439,31 @@ func removeAwsAmi(image *ec2Types.Image, ec2Service *ec2.Client) error {
 
 	log.Debug("AMI is de-registered.")
 
-	// delete snapshot
+	// delete snapshots
+	var snapshotErrors []error
 	for _, mapping := range image.BlockDeviceMappings {
 		if mapping.Ebs == nil || mapping.Ebs.SnapshotId == nil {
 			continue
 		}
+		snapshotID := *mapping.Ebs.SnapshotId
 		deleteSnapshotInput := &ec2.DeleteSnapshotInput{
-			SnapshotId: mapping.Ebs.SnapshotId,
+			SnapshotId: &snapshotID,
 		}
 
 		_, err := ec2Service.DeleteSnapshot(context.Background(), deleteSnapshotInput)
 		if err != nil {
-			return err
+			log.Warnf("Failed to delete snapshot %s: %v", snapshotID, err)
+			snapshotErrors = append(snapshotErrors, err)
+		} else {
+			log.Debugf("Successfully deleted snapshot %s", snapshotID)
 		}
 	}
 
-	log.Debug("Snapshots have been deleted.")
+	if len(snapshotErrors) > 0 {
+		log.Warnf("Deleted AMI %s but encountered %d errors deleting snapshots", *image.ImageId, len(snapshotErrors))
+	} else {
+		log.Debug("Snapshots have been deleted successfully.")
+	}
 
 	return nil
 }

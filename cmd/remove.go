@@ -15,6 +15,8 @@
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/cloudnatives/aws-ami-manager/aws"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -84,6 +86,6 @@ func init() {
 	_ = removeCmd.MarkFlagRequired("amiID")
 
 	removeCmd.Flags().StringSliceVar(&accounts, "accounts", []string{}, "Optional: Account ID(s) to assume into for this operation (only first is used).")
-	removeCmd.Flags().StringVar(&role, "role", "terraform", "Role name to assume in the provided account (defaults to 'terraform'). When --accounts is set this role must exist in that account.")
+	removeCmd.Flags().StringVar(&role, "role", aws.DefaultAssumeRole, fmt.Sprintf("Role name to assume in the provided account. Defaults to '%s'. When --accounts is set this role must exist in that account.", aws.DefaultAssumeRole))
 	removeCmd.Flags().BoolVar(&removeDryRun, "dry-run", false, "Show what would be removed without performing deregistration or snapshot deletion.")
 }

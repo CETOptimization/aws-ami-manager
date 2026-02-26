@@ -42,10 +42,10 @@ var rootCmd = &cobra.Command{
 set launch permissions, tag them, and clean up older versions.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		if regionOverride != "" {
-			os.Setenv("AWS_REGION", regionOverride)
+			_ = os.Setenv("AWS_REGION", regionOverride)
 		}
 		if profileName != "" {
-			os.Setenv("AWS_PROFILE", profileName)
+			_ = os.Setenv("AWS_PROFILE", profileName)
 		}
 	},
 }

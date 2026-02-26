@@ -91,6 +91,92 @@ Grant the base (SSO) role permission to assume the target role by attaching a po
 - `--dry-run` (remove) Preview deregistration and snapshot removal.
 - `--loglevel` debug|info|warn|error.
 
+## Development & Testing
+
+### Running Tests
+
+```bash
+# Run all unit tests
+make test
+
+# Run specific package tests
+go test ./aws -v
+
+# Generate coverage report (outputs coverage.html)
+make test-coverage
+```
+
+### Code Quality
+
+The project uses automated linting and code quality checks:
+
+```bash
+# Run all linters (requires golangci-lint)
+make lint
+
+# Run Go vet
+make vet
+
+# Format code
+make fmt
+
+# Run all checks (format, vet, lint, test)
+make check
+```
+
+Install golangci-lint:
+```bash
+brew install golangci-lint  # macOS
+# or
+go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+```
+
+### Building Locally
+
+```bash
+# Build for current OS
+make build
+
+# Or build directly
+go build -o ./aws-ami-manager .
+
+# Test the build
+./aws-ami-manager --help
+```
+
+### Code Structure
+
+- **main.go** - Entry point
+- **cmd/** - Cobra CLI commands (copy, remove, cleanup, diagnose)
+- **aws/** - AWS SDK integration and business logic
+  - `ami.go` - AMI operations (copy, remove, cleanup)
+  - `config.go` - AWS configuration and credential management
+  - `credentials.go` - Custom credential provider for STS
+
+### Testing & Test Coverage
+
+Current test coverage includes:
+- Tag formatting and conversion utilities
+- AMI object creation and initialization
+- Launch permission generation
+- Configuration manager behavior
+- Logging level configuration
+- Error handling and credential hints
+
+Run `make test-coverage` to generate an HTML coverage report.
+
+## IAM Permissions
+
+Detailed IAM permission requirements are documented in [IAM_PERMISSIONS.md](./IAM_PERMISSIONS.md).
+
+Key permissions needed:
+- **copy**: `ec2:DescribeImages`, `ec2:CopyImage`, `ec2:ModifyImageAttribute`, `ec2:CreateTags`
+- **remove**: `ec2:DescribeImages`, `ec2:DeregisterImage`, `ec2:DeleteSnapshot`
+- **cleanup**: Same as remove
+- **diagnose**: `sts:GetCallerIdentity`
+
+Cross-account operations require role assumption with `sts:AssumeRole` permissions.
+
 ## Licence
 Apache License, version 2.0
 

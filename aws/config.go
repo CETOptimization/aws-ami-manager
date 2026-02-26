@@ -16,9 +16,11 @@ import (
 )
 
 const (
-	ProfileString string = "AWS_PROFILE"
+	ProfileString     string = "AWS_PROFILE"
+	DefaultAssumeRole string = "terraform"
 )
 
+// SetLogLevel sets the logging level for the application (debug, info, warn, error).
 func SetLogLevel(level string) {
 	logLevel, err := log.ParseLevel(level)
 	if err != nil {
@@ -41,10 +43,12 @@ type ConfigurationManager struct {
 	role string
 }
 
+// NewConfigurationManager creates a new ConfigurationManager using environment and AWS credentials.
 func NewConfigurationManager() (*ConfigurationManager, error) {
 	return NewConfigurationManagerForRegionsAndAccounts(make([]string, 0), make([]string, 0), "")
 }
 
+// NewConfigurationManagerForRegionsAndAccounts creates a new ConfigurationManager with specified regions, accounts, and role for cross-account operations.
 func NewConfigurationManagerForRegionsAndAccounts(regions []string, accounts []string, role string) (*ConfigurationManager, error) {
 	cm := &ConfigurationManager{
 		regions:  regions,
@@ -90,7 +94,7 @@ func NewConfigurationManagerForRegionsAndAccounts(regions []string, accounts []s
 	// Attempt credential retrieval before making STS call for clearer diagnostics
 	creds, credErr := conf.Credentials.Retrieve(context.TODO())
 	if credErr != nil {
-		return nil, fmt.Errorf("unable to retrieve AWS credentials for profile '%s' region '%s': %v\nHints: ensure 'aws sso login --profile %s' was executed, or export static credentials. If using SSO, confirm your AWS CLI v2 cache exists in ~/.aws/sso/cache and AWS_SDK_LOAD_CONFIG=1.", cm.defaultProfile, conf.Region, credErr, cm.defaultProfile)
+		return nil, fmt.Errorf("unable to retrieve AWS credentials for profile '%s' region '%s': %v. Hints: ensure 'aws sso login --profile %s' was executed, or export static credentials. If using SSO, confirm your AWS CLI v2 cache exists in ~/.aws/sso/cache and AWS_SDK_LOAD_CONFIG=1", cm.defaultProfile, conf.Region, credErr, cm.defaultProfile)
 	}
 	log.WithFields(log.Fields{"credential_source": creds.Source, "access_key_present": creds.AccessKeyID != "", "using_profile": profileFromEnv}).Debug("Retrieved AWS credentials")
 
@@ -171,22 +175,20 @@ func buildCredentialHint() error {
 		"  4. IMDS/IRSA: if in EC2/EKS ensure instance or pod role has sts:GetCallerIdentity\n" +
 		"  5. Test manually: 'aws sts get-caller-identity' should succeed in same shell\n" +
 		"If using a profile, also ensure the region is set in the profile or pass --region."
-	return fmt.Errorf(msg)
+	return fmt.Errorf("%s", msg)
 }
 
+// GetDefaultRegion returns the default AWS region.
 func (cm *ConfigurationManager) GetDefaultRegion() string {
 	return cm.defaultRegion
 }
 
+// GetDefaultAccountID returns the default AWS account ID.
 func (cm *ConfigurationManager) GetDefaultAccountID() *string {
 	return cm.defaultAccountID
 }
 
-func (cm *ConfigurationManager) loadConfiguration() {
-	log.Debug("Load configuration")
-
-}
-
+// GetConfigurationForDefaultAccount returns the AWS config for the default account.
 func (cm *ConfigurationManager) GetConfigurationForDefaultAccount() awsv2.Config {
 	log.Debug("GetConfigurationForDefaultAccount")
 	return cm.getConfigurationForAccount(*cm.defaultAccountID)
@@ -198,14 +200,6 @@ func (cm *ConfigurationManager) getConfigurationForAccount(account string) awsv2
 		return cm.defaultConfig
 	}
 	return cm.configsPerAccount[account]
-}
-
-func (cm *ConfigurationManager) getConfigurationForDefaultAccountAndRegion(region string) awsv2.Config {
-	log.Debugf("getConfigurationForDefaultAccountAndRegion: region: %s", region)
-	config := cm.GetConfigurationForDefaultAccount()
-	config.Region = region
-
-	return config
 }
 
 func (cm *ConfigurationManager) getConfigurationForAccountAndRegion(account string, region string) awsv2.Config {
@@ -220,6 +214,7 @@ func (cm *ConfigurationManager) getAccounts() []string {
 	return cm.accounts
 }
 
+// AssumeDefaultAccountRole assumes an IAM role in the specified account and updates the manager's default configuration.
 func (cm *ConfigurationManager) AssumeDefaultAccountRole(account string, role string) error {
 	// Build new assumed role config based on current default
 	base := cm.GetConfigurationForDefaultAccount()

@@ -15,6 +15,7 @@
 package cmd
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -66,7 +67,7 @@ func init() {
 	copyCmd.Flags().StringSliceVar(&accounts, "accounts", []string{}, "The account ID's that will be authorized to use the Ami's. Can be multiple flags, or a comma-separated value")
 	_ = copyCmd.MarkFlagRequired("accounts")
 
-	copyCmd.Flags().StringVar(&role, "role", "terraform", "The AWS IAM role to assume in the organizations, e.g. OrganizationAccountAssumeRole. Defaults to `terraform`.")
+	copyCmd.Flags().StringVar(&role, "role", aws.DefaultAssumeRole, fmt.Sprintf("The AWS IAM role to assume in the organizations. Defaults to '%s'.", aws.DefaultAssumeRole))
 }
 
 func loadAWSConfigForProfiles() {

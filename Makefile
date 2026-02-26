@@ -21,6 +21,32 @@ all: build
 build:
 	GOBIN=$(BINDIR) $(GO) install $(GOFLAGS) -tags '$(TAGS)' -ldflags '$(LDFLAGS)' .
 
+.PHONY: test
+test:
+	$(GO) test -v -race -coverprofile=coverage.out ./...
+
+.PHONY: test-coverage
+test-coverage: test
+	$(GO) tool cover -html=coverage.out -o coverage.html
+	@echo "Coverage report generated at coverage.html"
+
+.PHONY: lint
+lint:
+	golangci-lint run --no-config ./...
+
+.PHONY: vet
+vet:
+	$(GO) vet ./...
+
+.PHONY: fmt
+fmt:
+	$(GO) fmt ./...
+	goimports -w .
+
+.PHONY: check
+check: fmt vet lint test
+	@echo "✓ All checks passed"
+
 # usage: make clean build-cross dist VERSION=v2.0.0-alpha.3
 .PHONY: build-cross
 build-cross: LDFLAGS += -extldflags "-static"

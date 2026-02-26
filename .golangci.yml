@@ -1,0 +1,39 @@
+
+run:
+  timeout: 5m
+  build-tags:
+    - integration
+
+linters:
+  disable-all: true
+  enable:
+    - vet
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - typecheck
+    - unused
+    - goimports
+    - gocritic
+    - misspell
+    - gocyclo
+    - bodyclose
+    - gomodguard
+
+linters-settings:
+  gocyclo:
+    min-complexity: 15
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - style
+      - performance
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - gocyclo
+
