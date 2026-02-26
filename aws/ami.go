@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"sort"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	ec2Types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -204,6 +205,7 @@ func (ami *Ami) copyToRegion(region string) (*Ami, error) {
 
 	// Wait until AMI is `available`
 	duration, _ := time.ParseDuration("5s")
+	maxDuration, _ := time.ParseDuration("30s")
 	start := time.Now()
 
 	for {
@@ -216,10 +218,16 @@ func (ami *Ami) copyToRegion(region string) (*Ami, error) {
 
 		log.Infof("AMI %s is not available yet. Waiting %f seconds.", relatedAmi.SourceAmiID, duration.Seconds())
 		time.Sleep(duration)
+
+		// Increase wait duration up to max, but cap at 30 seconds
+		duration = duration + 5*time.Second
+		if duration > maxDuration {
+			duration = maxDuration
+		}
 	}
 
 	elapsed := time.Since(start)
-	log.Infof("AMI took %s to become available", elapsed)
+	log.Infof("AMI %s took %s to become available in region %s", *output.ImageId, elapsed, region)
 
 	return relatedAmi, nil
 }
