@@ -1,0 +1,16 @@
+---
+version: 2
+registries:
+  CETOptimization:
+    type: git
+    url: https://github.com
+    username: x-access-token
+    password: ${{secrets.DEPENDABOT_PAT}}
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    registries:
+      - CETOptimization
+# registries is needed to access our private repos for common-actions
